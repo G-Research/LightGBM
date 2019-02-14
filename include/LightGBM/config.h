@@ -25,7 +25,7 @@ enum TaskType {
 const int kDefaultNumLeaves = 31;
 
 struct Config {
-public:
+ public:
   std::string ToString() const;
   /*!
   * \brief Get string value by specific name of key
@@ -377,6 +377,28 @@ public:
   // desc = used only in ``refit`` task in CLI version or as argument in ``refit`` function in language-specific package
   double refit_decay_rate = 0.9;
 
+  // check = >=0.0
+  // default = 1
+  // desc = cost-effective gradient boosting multiplier for all penalties
+  double cegb_tradeoff = 1.0;
+
+  // check = >=0.0
+  // default = 0
+  // desc = cost-effective gradient-boosting penalty for splitting a node
+  double cegb_penalty_split = 0.0;
+
+  // type = multi-double
+  // default = 0,0,...,0
+  // desc = cost-effective gradient boosting penalty for using a feature
+  // desc = applied per data point
+  std::vector<double> cegb_penalty_feature_lazy;
+
+  // type = multi-double
+  // default = 0,0,...,0
+  // desc = cost-effective gradient boosting penalty for using a feature
+  // desc = applied once per forest
+  std::vector<double> cegb_penalty_feature_coupled;  
+
   #pragma endregion
 
   #pragma region IO Parameters
@@ -664,17 +686,6 @@ public:
   // desc = separate by ``,``
   std::vector<double> label_gain;
 
-  //NOTE: CEGB params
-  //TODO: Document
-  double cegb_tradeoff = 0.0;
-  double cegb_penalty_split = 0.0;
-
-  //TODO: Original used map<int, double>, is the int just a feature index?
-  //I've assumed that so I can just use a vector.
-  //TODO: It might be a real feature idx (as given by user)
-  std::vector<double> cegb_penalty_feature_lazy;
-  std::vector<double> cegb_penalty_feature_coupled;  
-
   #pragma endregion
 
   #pragma region Metric Parameters
@@ -783,7 +794,7 @@ public:
   static std::unordered_map<std::string, std::string> alias_table;
   static std::unordered_set<std::string> parameter_set;
 
-private:
+ private:
   void CheckParamConflict();
   void GetMembersFromString(const std::unordered_map<std::string, std::string>& params);
   std::string SaveMembersToString() const;

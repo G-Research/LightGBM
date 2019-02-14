@@ -32,7 +32,7 @@ namespace LightGBM {
 * \brief Used for learning a tree by single machine
 */
 class SerialTreeLearner: public TreeLearner {
-public:
+ public:
   explicit SerialTreeLearner(const Config* config);
 
   ~SerialTreeLearner();
@@ -75,7 +75,7 @@ public:
   void RenewTreeOutput(Tree* tree, const ObjectiveFunction* obj, double prediction,
                        data_size_t total_num_data, const data_size_t* bag_indices, data_size_t bag_cnt) const override;
 
-protected:
+ protected:
   /*!
   * \brief Some initial works before training
   */
@@ -140,6 +140,8 @@ protected:
 
   /*! \brief store best split points for all leaves */
   std::vector<SplitInfo> best_split_per_leaf_;
+  /*! \brief store best split per feature for all leaves */
+  std::vector<SplitInfo> splits_per_leaf_;
 
   /*! \brief stores best thresholds for all feature for smaller leaf */
   std::unique_ptr<LeafSplits> smaller_leaf_splits_;
