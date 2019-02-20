@@ -1026,4 +1026,11 @@ void Dataset::addDataFrom(Dataset* other){
   num_data_ += other->num_data_;
 }
 
+void Dataset::reserve(data_size_t num_data){
+  metadata_.reserve(num_data);
+  for(auto& fg: feature_groups_){
+    fg->reserve(num_data);
+  }
+}
+
 }  // namespace LightGBM

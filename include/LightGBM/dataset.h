@@ -201,6 +201,7 @@ class Metadata {
   */
   inline int64_t num_init_score() const { return num_init_score_; }
 
+  void reserve(data_size_t num_data);
   void Merge(const Metadata& other);
 
   /*! \brief Disable copy */
@@ -589,6 +590,9 @@ class Dataset {
 
   void addFeaturesFrom(Dataset* other);
   void addDataFrom(Dataset* other);
+
+  /*! \brief Reserve space in feature group bins for num_data data points */
+  void reserve(data_size_t num_data);
 
  private:
   std::string data_filename_;

@@ -421,9 +421,8 @@ class Bin {
   /*!
   * \brief Copy the data from other to this bin
   * \param other: The bin to copy from, must be the same type as this bin.
-  * TODO: Implement for all subclasses
   */
-  virtual void Merge(const Bin* other){}
+  virtual void Merge(const Bin* other) = 0;
 
   /*!
   * \brief Create object for bin data of one feature, will call CreateDenseBin or CreateSparseBin according to "is_sparse"
@@ -459,6 +458,11 @@ class Bin {
   * \brief Deep copy the bin
   */
   virtual Bin* Clone() = 0;
+
+  /*!
+  * \brief Reserve space for num_data_ data points in the bin
+  */
+  virtual void reserve(data_size_t num_data) = 0;
 };
 
 inline uint32_t BinMapper::ValueToBin(double value) const {
