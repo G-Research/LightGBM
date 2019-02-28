@@ -281,5 +281,14 @@ struct LightSplitInfo {
   }
 };
 
-}  // namespace LightGBM
+struct FeatureSplits{
+public:
+  std::vector<SplitInfo> leaf_splits;
+  double gain;
+  FeatureSplits(int num_leaves) : leaf_splits(num_leaves), gain(kMinScore){
+  }
+  
+};
+
+}  // Namespace LightGBM
 #endif   // LightGBM_TREELEARNER_SPLIT_INFO_HPP_
