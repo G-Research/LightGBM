@@ -8,10 +8,10 @@
 #include <LightGBM/dataset.h>
 #include <LightGBM/tree.h>
 
-#include "feature_histogram.hpp"
-#include "split_info.hpp"
-#include "data_partition.hpp"
-#include "leaf_splits.hpp"
+#include <LightGBM/feature_histogram.h>
+#include <LightGBM/split_info.h>
+#include <LightGBM/data_partition.h>
+#include <LightGBM/leaf_splits.h>
 
 #include <cstdio>
 #include <vector>
@@ -74,6 +74,14 @@ class SerialTreeLearner: public TreeLearner {
 
   void RenewTreeOutput(Tree* tree, const ObjectiveFunction* obj, double prediction,
                        data_size_t total_num_data, const data_size_t* bag_indices, data_size_t bag_cnt) const override;
+
+  void SetSplitCallback(SplitCallback* callback) override {
+    split_callback_.reset(callback);
+  }
+
+  void SetCategoricalSplitCallback(CategoricalSplitCallback* callback) override {
+    categorical_split_callback_.reset(callback);
+  }
 
  protected:
   /*!
@@ -177,6 +185,9 @@ class SerialTreeLearner: public TreeLearner {
 
   std::vector<bool> feature_used;
   std::vector<uint32_t> feature_used_in_data;
+
+  std::unique_ptr<SplitCallback> split_callback_;
+  std::unique_ptr<CategoricalSplitCallback> categorical_split_callback_;
 };
 
 inline data_size_t SerialTreeLearner::GetGlobalDataCountInLeaf(int leaf_idx) const {

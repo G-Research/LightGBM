@@ -111,6 +111,14 @@ class GBDT : public GBDTBase {
   */
   void ResetConfig(const Config* gbdt_config) override;
 
+  void SetSplitCallback(SplitCallback* callback) override {
+    tree_learner_->SetSplitCallback(callback);
+  }
+
+  void SetCategoricalSplitCallback(CategoricalSplitCallback* callback) override {
+    tree_learner_->SetCategoricalSplitCallback(callback);
+  }
+
   /*!
   * \brief Adding a validation dataset
   * \param valid_data Validation dataset

@@ -4,6 +4,8 @@
 
 #include <LightGBM/meta.h>
 #include <LightGBM/config.h>
+#include <LightGBM/feature_histogram.h>
+#include <LightGBM/leaf_splits.h>
 #include <LightGBM/json11.hpp>
 
 #include <vector>
@@ -16,6 +18,16 @@ namespace LightGBM {
 class Tree;
 class Dataset;
 class ObjectiveFunction;
+
+class SplitCallback {
+public:
+  virtual int SplitPoint(const Config* config, const FeatureHistogram* histogram, const LeafSplits* leaf_splits, bool* default_left) = 0;
+};
+
+class CategoricalSplitCallback {
+public:
+  virtual void SplitPoint(const Config* config, const FeatureHistogram* histogram, const LeafSplits* leaf_splits, std::vector<uint32_t>* thresholds) = 0;
+};
 
 /*!
 * \brief Interface for tree learner
@@ -77,6 +89,9 @@ class TreeLearner {
 
   virtual void RenewTreeOutput(Tree* tree, const ObjectiveFunction* obj, double prediction,
     data_size_t total_num_data, const data_size_t* bag_indices, data_size_t bag_cnt) const = 0;
+
+  virtual void SetSplitCallback(SplitCallback* callback) = 0;
+  virtual void SetCategoricalSplitCallback(CategoricalSplitCallback* callback) = 0;
 
   TreeLearner() = default;
   /*! \brief Disable copy */

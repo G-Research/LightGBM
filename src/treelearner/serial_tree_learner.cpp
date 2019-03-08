@@ -104,10 +104,10 @@ void SerialTreeLearner::Init(const Dataset* train_data, bool is_constant_hessian
   feature_used.resize(train_data->num_features());
 
   if(!config_->cegb_penalty_feature_coupled.empty()){
-    CHECK(config_->cegb_penalty_feature_coupled.size() == train_data_->num_total_features());
+    CHECK(config_->cegb_penalty_feature_coupled.size() == static_cast<size_t>(train_data_->num_total_features()));
   }
   if(!config_->cegb_penalty_feature_lazy.empty()){
-    CHECK(config_->cegb_penalty_feature_lazy.size() == train_data_->num_total_features());
+    CHECK(config_->cegb_penalty_feature_lazy.size() == static_cast<size_t>(train_data_->num_total_features()));
     feature_used_in_data = Common::EmptyBitset(train_data->num_features() * num_data_);
   }
 }
@@ -522,13 +522,43 @@ void SerialTreeLearner::FindBestSplitsFromHistograms(const std::vector<int8_t>& 
                               smaller_leaf_splits_->num_data_in_leaf(),
                               smaller_leaf_histogram_array_[feature_index].RawData());
     int real_fidx = train_data_->RealFeatureIndex(feature_index);
-    smaller_leaf_histogram_array_[feature_index].FindBestThreshold(
-      smaller_leaf_splits_->sum_gradients(),
-      smaller_leaf_splits_->sum_hessians(),
-      smaller_leaf_splits_->num_data_in_leaf(),
-      smaller_leaf_splits_->min_constraint(),
-      smaller_leaf_splits_->max_constraint(),
-      &smaller_split);
+    auto bin_type = smaller_leaf_histogram_array_[feature_index].bin_type();
+    if(bin_type == BinType::NumericalBin && split_callback_){
+      bool default_left;
+      auto threshold = split_callback_->SplitPoint(config_, smaller_leaf_histogram_array_ + feature_index, smaller_leaf_splits_.get(), &default_left);
+      if(threshold >= 0){
+        smaller_leaf_histogram_array_[feature_index].GatherInfoForThresholdNumerical(
+	  smaller_leaf_splits_->sum_gradients(),
+	  smaller_leaf_splits_->sum_hessians(),
+	  threshold,
+	  smaller_leaf_splits_->num_data_in_leaf(),
+	  default_left,
+	  &smaller_split);
+        smaller_split.min_constraint = smaller_leaf_splits_->min_constraint();
+        smaller_split.max_constraint = smaller_leaf_splits_->max_constraint();
+      }
+    } else if(bin_type == BinType::CategoricalBin && categorical_split_callback_){
+      std::vector<uint32_t> thresholds;
+      categorical_split_callback_->SplitPoint(config_, smaller_leaf_histogram_array_ + feature_index, smaller_leaf_splits_.get(), &thresholds);
+      if(thresholds.size() > 0){
+	smaller_leaf_histogram_array_[feature_index].GatherInfoForThresholdCategorical(
+	  smaller_leaf_splits_->sum_gradients(),
+	  smaller_leaf_splits_->sum_hessians(),
+	  thresholds,
+	  smaller_leaf_splits_->num_data_in_leaf(),
+	  &smaller_split);
+        smaller_split.min_constraint = smaller_leaf_splits_->min_constraint();
+        smaller_split.max_constraint = smaller_leaf_splits_->max_constraint();
+      }
+    } else {
+      smaller_leaf_histogram_array_[feature_index].FindBestThreshold(
+        smaller_leaf_splits_->sum_gradients(),
+        smaller_leaf_splits_->sum_hessians(),
+        smaller_leaf_splits_->num_data_in_leaf(),
+        smaller_leaf_splits_->min_constraint(),
+        smaller_leaf_splits_->max_constraint(),
+        &smaller_split);
+    }
     smaller_split.feature = real_fidx;
     smaller_split.gain -= config_->cegb_tradeoff * config_->cegb_penalty_split * smaller_leaf_splits_->num_data_in_leaf();
     if(!config_->cegb_penalty_feature_coupled.empty() && !feature_used[feature_index]){
@@ -552,14 +582,44 @@ void SerialTreeLearner::FindBestSplitsFromHistograms(const std::vector<int8_t>& 
                                 larger_leaf_histogram_array_[feature_index].RawData());
     }
     SplitInfo larger_split;
+    bin_type = larger_leaf_histogram_array_[feature_index].bin_type();
+    if(bin_type == BinType::NumericalBin && split_callback_){
+      bool default_left;
+      auto threshold = split_callback_->SplitPoint(config_, larger_leaf_histogram_array_ + feature_index, larger_leaf_splits_.get(), &default_left);
+      if(threshold >= 0){
+        larger_leaf_histogram_array_[feature_index].GatherInfoForThresholdNumerical(
+  	  larger_leaf_splits_->sum_gradients(),
+	  larger_leaf_splits_->sum_hessians(),
+	  threshold,
+	  larger_leaf_splits_->num_data_in_leaf(),
+	  default_left,
+	  &larger_split);
+	larger_split.min_constraint = larger_leaf_splits_->min_constraint();
+	larger_split.max_constraint = larger_leaf_splits_->max_constraint();
+      }
+    } else if(bin_type == BinType::CategoricalBin && categorical_split_callback_){
+      std::vector<uint32_t> thresholds;
+      categorical_split_callback_->SplitPoint(config_, larger_leaf_histogram_array_ + feature_index, larger_leaf_splits_.get(), &thresholds);
+      if(thresholds.size() > 0){
+	larger_leaf_histogram_array_[feature_index].GatherInfoForThresholdCategorical(
+	  larger_leaf_splits_->sum_gradients(),
+	  larger_leaf_splits_->sum_hessians(),
+	  thresholds,
+	  larger_leaf_splits_->num_data_in_leaf(),
+	  &larger_split);
+        larger_split.min_constraint = larger_leaf_splits_->min_constraint();
+        larger_split.max_constraint = larger_leaf_splits_->max_constraint();
+      }
+    } else {
     // find best threshold for larger child
-    larger_leaf_histogram_array_[feature_index].FindBestThreshold(
-      larger_leaf_splits_->sum_gradients(),
-      larger_leaf_splits_->sum_hessians(),
-      larger_leaf_splits_->num_data_in_leaf(),
-      larger_leaf_splits_->min_constraint(),
-      larger_leaf_splits_->max_constraint(),
-      &larger_split);
+      larger_leaf_histogram_array_[feature_index].FindBestThreshold(
+        larger_leaf_splits_->sum_gradients(),
+        larger_leaf_splits_->sum_hessians(),
+        larger_leaf_splits_->num_data_in_leaf(),
+        larger_leaf_splits_->min_constraint(),
+        larger_leaf_splits_->max_constraint(),
+        &larger_split);
+    }
     larger_split.feature = real_fidx;
     larger_split.gain -= config_->cegb_tradeoff * config_->cegb_penalty_split * larger_leaf_splits_->num_data_in_leaf();
     if(!config_->cegb_penalty_feature_coupled.empty() && !feature_used[feature_index]){

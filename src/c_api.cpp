@@ -7,6 +7,7 @@
 #include <LightGBM/utils/log.h>
 #include <LightGBM/dataset_loader.h>
 #include <LightGBM/dataset.h>
+#include <LightGBM/feature_histogram.h>
 #include <LightGBM/boosting.h>
 #include <LightGBM/objective_function.h>
 #include <LightGBM/metric.h>
@@ -42,6 +43,30 @@ catch(std::exception& ex) { return LGBM_APIHandleException(ex); } \
 catch(std::string& ex) { return LGBM_APIHandleException(ex); } \
 catch(...) { return LGBM_APIHandleException("unknown exception"); } \
 return 0;
+
+class SplitFunctionCallback : public SplitCallback {
+ public:
+  SplitFunctionCallback(SplitFunction fn) : function_(fn){}
+
+  int SplitPoint(const Config* config, const FeatureHistogram* hist, const LeafSplits* leaf_split, bool* default_left) override {
+    return function_((ConfigHandle)config, (HistogramHandle)hist, (LeafSplitHandle)leaf_split, default_left);
+  }
+
+ private:
+  SplitFunction function_;
+};
+
+class CategoricalSplitFunctionCallback : public CategoricalSplitCallback {
+ public:
+  CategoricalSplitFunctionCallback(CategoricalSplitFunction fn) : function_(fn){}
+
+  void SplitPoint(const Config* config, const FeatureHistogram* hist, const LeafSplits* leaf_split, std::vector<uint32_t>* thresholds) override {
+    return function_((ConfigHandle)config, (HistogramHandle)hist, (LeafSplitHandle)leaf_split, (CategoricalSplitHandle)thresholds);
+  }
+
+ private:
+  CategoricalSplitFunction function_;
+};
 
 class Booster {
  public:
@@ -155,6 +180,14 @@ class Booster {
     }
 
     boosting_->ResetConfig(&config_);
+  }
+
+  void SetSplitCallback(SplitCallback* callback){
+    boosting_->SetSplitCallback(callback);
+  }
+
+  void SetCategoricalSplitCallback(CategoricalSplitCallback* callback){
+    boosting_->SetCategoricalSplitCallback(callback);
   }
 
   void AddValidData(const Dataset* valid_data) {
@@ -1002,6 +1035,20 @@ int LGBM_BoosterResetParameter(BoosterHandle handle, const char* parameters) {
   API_END();
 }
 
+int LGBM_BoosterSetSplitFunction(BoosterHandle handle, SplitFunction callback){
+  API_BEGIN();
+  Booster* ref_booster = reinterpret_cast<Booster*>(handle);
+  ref_booster->SetSplitCallback(new SplitFunctionCallback(callback));
+  API_END();
+}
+
+int LGBM_BoosterSetCategoricalSplitFunction(BoosterHandle handle, CategoricalSplitFunction callback){
+  API_BEGIN();
+  Booster* ref_booster = reinterpret_cast<Booster*>(handle);
+  ref_booster->SetCategoricalSplitCallback(new CategoricalSplitFunctionCallback(callback));
+  API_END();
+}
+
 int LGBM_BoosterGetNumClasses(BoosterHandle handle, int* out_len) {
   API_BEGIN();
   Booster* ref_booster = reinterpret_cast<Booster*>(handle);
@@ -1377,6 +1424,162 @@ int LGBM_NetworkInitWithFunctions(int num_machines, int rank,
   if (num_machines > 1) {
     Network::Init(num_machines, rank, (ReduceScatterFunction)reduce_scatter_ext_fun, (AllgatherFunction)allgather_ext_fun);
   }
+  API_END();
+}
+
+int LGBM_HistogramNumBins(HistogramHandle handle, int* out){
+  API_BEGIN();
+  auto ptr = reinterpret_cast<FeatureHistogram*>(handle);
+  *out = ptr->num_bins();
+  API_END();
+}
+
+int LGBM_HistogramBias(HistogramHandle handle, int* out){
+  API_BEGIN();
+  auto ptr = reinterpret_cast<FeatureHistogram*>(handle);
+  *out = ptr->bias();
+  API_END();
+}
+
+int LGBM_HistogramCount(HistogramHandle handle, int bin, int32_t* out){
+  API_BEGIN();
+  auto ptr = reinterpret_cast<FeatureHistogram*>(handle);
+  *out = ptr->count(bin);
+  API_END();
+}
+
+int LGBM_HistogramSumGradients(HistogramHandle handle, int bin, double* out){
+  API_BEGIN();
+  auto ptr = reinterpret_cast<FeatureHistogram*>(handle);
+  *out = ptr->sum_gradients(bin);
+  API_END();
+}
+
+int LGBM_HistogramSumHessians(HistogramHandle handle, int bin, double* out){
+  API_BEGIN();
+  auto ptr = reinterpret_cast<FeatureHistogram*>(handle);
+  *out = ptr->sum_hessians(bin);
+  API_END();
+}
+
+int LGBM_HistogramMonotoneConstraint(HistogramHandle handle, int8_t* out){
+  API_BEGIN();
+  auto ptr = reinterpret_cast<FeatureHistogram*>(handle);
+  *out = ptr->monotone_constraint();
+  API_END();
+}
+
+int LGBM_SplitGain(double left_gradients, double left_hessians, double right_gradients, double right_hessians, double l1, double l2, double max_delta_step, double min_constraint, double max_constraint, int8_t monotone_constraint, double* out){
+  API_BEGIN();
+  *out = FeatureHistogram::GetSplitGains(
+    left_gradients,
+    left_hessians,
+    right_gradients,
+    right_hessians,
+    l1,
+    l2,
+    max_delta_step,
+    min_constraint,
+    max_constraint,
+    monotone_constraint);
+  API_END();
+}
+
+int LGBM_ConfigLambdaL1(ConfigHandle handle, double* out){
+  API_BEGIN();
+  auto ptr = reinterpret_cast<const Config*>(handle);
+  *out = ptr->lambda_l1;
+  API_END();
+}
+
+int LGBM_ConfigLambdaL2(ConfigHandle handle, double* out){
+  API_BEGIN();
+  auto ptr = reinterpret_cast<const Config*>(handle);
+  *out = ptr->lambda_l2;
+  API_END();
+}
+
+int LGBM_ConfigMaxDeltaStep(ConfigHandle handle, double* out){
+  API_BEGIN();
+  auto ptr = reinterpret_cast<const Config*>(handle);
+  *out = ptr->max_delta_step;
+  API_END();
+}
+
+int LGBM_ConfigCatSmooth(ConfigHandle handle, double* out){
+  API_BEGIN();
+  auto ptr = reinterpret_cast<const Config*>(handle);
+  *out = ptr->cat_smooth;
+  API_END();
+}
+
+int LGBM_ConfigCatL2(ConfigHandle handle, double* out){
+  API_BEGIN();
+  auto ptr = reinterpret_cast<const Config*>(handle);
+  *out = ptr->cat_l2;
+  API_END();
+}
+
+int LGBM_ConfigMaxCatThreshold(ConfigHandle handle, int* out){
+  API_BEGIN();
+  auto ptr = reinterpret_cast<const Config*>(handle);
+  *out = ptr->max_cat_threshold;
+  API_END();
+}
+
+int LGBM_ConfigMinDataPerGroup(ConfigHandle handle, int* out){
+  API_BEGIN();
+  auto ptr = reinterpret_cast<const Config*>(handle);
+  *out = ptr->min_data_per_group;
+  API_END();
+}
+
+int LGBM_ConfigMinDataInLeaf(ConfigHandle handle, int* out){
+  API_BEGIN();
+  auto ptr = reinterpret_cast<const Config*>(handle);
+  *out = ptr->min_data_in_leaf;
+  API_END();
+}
+
+int LGBM_LeafSplitNumData(LeafSplitHandle handle, int32_t* out){
+  API_BEGIN();
+  auto ptr = reinterpret_cast<const LeafSplits*>(handle);
+  *out = ptr->num_data_in_leaf();
+  API_END();
+}
+
+int LGBM_LeafSplitSumGradients(LeafSplitHandle handle, double* out){
+  API_BEGIN();
+  auto ptr = reinterpret_cast<const LeafSplits*>(handle);
+  *out = ptr->sum_gradients();
+  API_END();
+}
+
+int LGBM_LeafSplitSumHessians(LeafSplitHandle handle, double* out){
+  API_BEGIN();
+  auto ptr = reinterpret_cast<const LeafSplits*>(handle);
+  *out = ptr->sum_hessians();
+  API_END();
+}
+
+int LGBM_LeafSplitMinConstraint(LeafSplitHandle handle, double* out){
+  API_BEGIN();
+  auto ptr = reinterpret_cast<const LeafSplits*>(handle);
+  *out = ptr->min_constraint();
+  API_END();
+}
+
+int LGBM_LeafSplitMaxConstraint(LeafSplitHandle handle, double* out){
+  API_BEGIN();
+  auto ptr = reinterpret_cast<const LeafSplits*>(handle);
+  *out = ptr->max_constraint();
+  API_END();
+}
+
+int LGBM_CategoricalSplitAdd(CategoricalSplitHandle handle, uint32_t category){
+  API_BEGIN();
+  auto ptr = reinterpret_cast<std::vector<uint32_t>*>(handle);
+  ptr->push_back(category);
   API_END();
 }
 

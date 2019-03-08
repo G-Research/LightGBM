@@ -16,6 +16,14 @@
 
 typedef void* DatasetHandle;
 typedef void* BoosterHandle;
+typedef void* ConfigHandle;
+typedef void* HistogramHandle;
+typedef void* LeafSplitHandle;
+typedef void* CategoricalSplitHandle;
+
+typedef int (*SplitFunction)(ConfigHandle, HistogramHandle, LeafSplitHandle, bool*);
+
+typedef void (*CategoricalSplitFunction)(ConfigHandle, HistogramHandle, LeafSplitHandle, CategoricalSplitHandle);
 
 #define C_API_DTYPE_FLOAT32 (0)
 #define C_API_DTYPE_FLOAT64 (1)
@@ -458,6 +466,10 @@ LIGHTGBM_C_EXPORT int LGBM_BoosterResetTrainingData(BoosterHandle handle,
 */
 LIGHTGBM_C_EXPORT int LGBM_BoosterResetParameter(BoosterHandle handle, const char* parameters);
 
+LIGHTGBM_C_EXPORT int LGBM_BoosterSetSplitFunction(BoosterHandle handle, SplitFunction callback);
+
+LIGHTGBM_C_EXPORT int LGBM_BoosterSetCategoricalSplitFunction(BoosterHandle handle, CategoricalSplitFunction callback);
+
 /*!
 * \brief Get number of class
 * \param handle handle
@@ -855,6 +867,31 @@ LIGHTGBM_C_EXPORT int LGBM_NetworkFree();
 LIGHTGBM_C_EXPORT int LGBM_NetworkInitWithFunctions(int num_machines, int rank,
                                                     void* reduce_scatter_ext_fun,
                                                     void* allgather_ext_fun);
+
+LIGHTGBM_C_EXPORT int LGBM_HistogramNumBins(HistogramHandle handle, int* out);
+LIGHTGBM_C_EXPORT int LGBM_HistogramBias(HistogramHandle handle, int* out);
+LIGHTGBM_C_EXPORT int LGBM_HistogramCount(HistogramHandle handle, int bin, int32_t* out);
+LIGHTGBM_C_EXPORT int LGBM_HistogramSumGradients(HistogramHandle handle, int bin, double* out);
+LIGHTGBM_C_EXPORT int LGBM_HistogramSumHessians(HistogramHandle handle, int bin, double* out);
+LIGHTGBM_C_EXPORT int LGBM_HistogramMonotoneConstraint(HistogramHandle handle, int8_t* out);
+LIGHTGBM_C_EXPORT int LGBM_SplitGain(double left_gradients, double left_hessians, double right_gradients, double right_hessians, double l1, double l2, double max_delta_step, double min_constraint, double max_constraint, int8_t monotone_constraint, double* out);
+
+LIGHTGBM_C_EXPORT int LGBM_ConfigLambdaL1(ConfigHandle handle, double* out);
+LIGHTGBM_C_EXPORT int LGBM_ConfigLambdaL2(ConfigHandle handle, double* out);
+LIGHTGBM_C_EXPORT int LGBM_ConfigMaxDeltaStep(ConfigHandle handle, double* out);
+LIGHTGBM_C_EXPORT int LGBM_ConfigCatSmooth(ConfigHandle handle, double* out);
+LIGHTGBM_C_EXPORT int LGBM_ConfigCatL2(ConfigHandle handle, double* out);
+LIGHTGBM_C_EXPORT int LGBM_ConfigMaxCatThreshold(ConfigHandle handle, int* out);
+LIGHTGBM_C_EXPORT int LGBM_ConfigMinDataPerGroup(ConfigHandle handle, int* out);
+LIGHTGBM_C_EXPORT int LGBM_ConfigMinDataInLeaf(ConfigHandle handle, int* out);
+
+LIGHTGBM_C_EXPORT int LGBM_LeafSplitNumData(LeafSplitHandle handle, int32_t* out);
+LIGHTGBM_C_EXPORT int LGBM_LeafSplitSumGradients(LeafSplitHandle handle, double* out);
+LIGHTGBM_C_EXPORT int LGBM_LeafSplitSumHessians(LeafSplitHandle handle, double* out);
+LIGHTGBM_C_EXPORT int LGBM_LeafSplitMinConstraint(LeafSplitHandle handle, double* out);
+LIGHTGBM_C_EXPORT int LGBM_LeafSplitMaxConstraint(LeafSplitHandle handle, double* out);
+
+LIGHTGBM_C_EXPORT int LGBM_CategoricalSplitAdd(CategoricalSplitHandle handle, uint32_t category);
 
 
 #if defined(_MSC_VER)
